@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vergi Levhası Okuyucu</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Syne:wght@400;600;800&display=swap');
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    :root {
+      --bg: #0a0b0d;
+      --surface: #111318;
+      --card: #161920;
+      --border: #222530;
+      --accent: #5bb82e;
+      --accent2: #3da020;
+      --text: #e8eaf0;
+      --muted: #5a6070;
+      --danger: #e84a4a
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      min-height: 100vh;
+      padding: 2rem;
+      line-height: 1.5
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border)
+    }
+
+    .logo-mark {
+      width: 40px;
+      height: 40px;
+      background: var(--accent);
+      display: grid;
+      place-items: center;
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.1rem;
+      color: #000;
+      flex-shrink: 0
+    }
+
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: .72rem;
+      margin-top: .2rem
+    }
+
+    #drop-zone {
+      border: 1.5px dashed var(--border);
+      border-radius: 2px;
+      padding: 3.5rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      background: var(--surface);
+      margin-bottom: 2rem
+    }
+
+    #drop-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(91, 184, 46, .04)
+    }
+
+    #drop-zone input {
+      display: none
+    }
+
+    .drop-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      display: block;
+      opacity: .4
+    }
+
+    .drop-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: .4rem
+    }
+
+    .drop-sub {
+      font-size: .72rem;
+      color: var(--muted)
+    }
+
+    #status-bar {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: .9rem 1.2rem;
+      margin-bottom: 2rem;
+      font-size: .78rem;
+      color: var(--muted);
+      border-left: 3px solid var(--accent)
+    }
+
+    #status-bar.active {
+      display: flex;
+      align-items: center;
+      gap: .8rem
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    #results {
+      display: none
+    }
+
+    #results.show {
+      display: block
+    }
+
+    .section-label {
+      font-size: .65rem;
+      font-weight: 600;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: .8rem;
+      padding-bottom: .5rem;
+      border-bottom: 1px solid var(--border)
+    }
+
+    .vkn-hero {
+      background: var(--card);
+      border: 1.5px solid var(--accent);
+      padding: 1.2rem 1.5rem;
+      margin-bottom: 1rem;
+      position: relative;
+      transition: background .15s;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem
+    }
+
+    .vkn-hero:hover {
+      background: rgba(91, 184, 46, .06)
+    }
+
+    .vkn-hero.copied {
+      border-color: var(--accent2);
+      background: rgba(61, 160, 32, .06)
+    }
+
+    .vkn-label {
+      font-size: .65rem;
+      color: var(--accent);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: .3rem
+    }
+
+    .vkn-value {
+      font-size: 1.8rem;
+      font-weight: 600;
+      letter-spacing: .15em;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums
+    }
+
+    .vkn-hint {
+      font-size: .65rem;
+      color: var(--muted);
+      margin-top: .2rem
+    }
+
+    .vkn-badge {
+      font-size: .65rem;
+      padding: .2rem .5rem;
+      font-weight: 600;
+      letter-spacing: .06em
+    }
+
+    .conf-high {
+      background: rgba(61, 160, 32, .15);
+      color: var(--accent2)
+    }
+
+    .conf-med {
+      background: rgba(91, 184, 46, .15);
+      color: var(--accent)
+    }
+
+    .conf-low {
+      background: rgba(232, 74, 74, .15);
+      color: var(--danger)
+    }
+
+    details.ocr-detail {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: .8rem 1rem;
+      margin-bottom: 1.5rem;
+      font-size: .72rem;
+      color: var(--muted)
+    }
+
+    details.ocr-detail summary {
+      cursor: pointer;
+      font-size: .68rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      list-style: none;
+      user-select: none
+    }
+
+    details.ocr-detail summary:hover {
+      color: var(--text)
+    }
+
+    .ocr-inner {
+      margin-top: .8rem;
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      align-items: flex-start
+    }
+
+    .ocr-canvas-wrap {
+      background: #fff;
+      padding: 6px;
+      flex-shrink: 0
+    }
+
+    canvas {
+      display: block
+    }
+
+    .ocr-lines {
+      font-size: .68rem;
+      line-height: 2;
+      flex: 1;
+      min-width: 180px
+    }
+
+    .ocr-lines span {
+      display: block;
+      white-space: pre-wrap;
+      word-break: break-all
+    }
+
+    .fields-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .5rem;
+      margin-bottom: 2rem
+    }
+
+    @media(max-width:640px) {
+      .fields-grid {
+        grid-template-columns: 1fr
+      }
+    }
+
+    .field-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: .9rem 1rem;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      position: relative;
+      overflow: hidden
+    }
+
+    .field-card:hover {
+      border-color: var(--accent);
+      background: rgba(91, 184, 46, .04)
+    }
+
+    .field-card.copied {
+      border-color: var(--accent2);
+      background: rgba(61, 160, 32, .06)
+    }
+
+    .field-card.wide {
+      grid-column: 1/-1
+    }
+
+    .field-label {
+      font-size: .65rem;
+      color: var(--muted);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: .3rem
+    }
+
+    .field-value {
+      font-size: .88rem;
+      font-weight: 600;
+      color: var(--text);
+      word-break: break-all;
+      line-height: 1.4
+    }
+
+    .copy-hint {
+      position: absolute;
+      top: .5rem;
+      right: .7rem;
+      font-size: .6rem;
+      color: var(--muted);
+      opacity: 0;
+      transition: opacity .15s
+    }
+
+    .field-card:hover .copy-hint {
+      opacity: 1
+    }
+
+    .copy-flash {
+      position: absolute;
+      inset: 0;
+      background: rgba(61, 160, 32, .12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .75rem;
+      color: var(--accent2);
+      font-weight: 600;
+      letter-spacing: .1em;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s
+    }
+
+    .field-card.copied .copy-flash {
+      opacity: 1
+    }
+
+    .table-actions {
+      margin-bottom: .8rem
+    }
+
+    .btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: .45rem .9rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .7rem;
+      cursor: pointer;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      transition: all .15s
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+      color: var(--accent)
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .82rem;
+      margin-bottom: 2rem
+    }
+
+    thead tr {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border)
+    }
+
+    th {
+      text-align: left;
+      padding: .7rem 1rem;
+      font-size: .65rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 400
+    }
+
+    td {
+      padding: .7rem 1rem;
+      border-bottom: 1px solid var(--border);
+      font-variant-numeric: tabular-nums
+    }
+
+    tbody tr {
+      background: var(--card);
+      cursor: pointer;
+      transition: background .15s
+    }
+
+    tbody tr:hover {
+      background: rgba(91, 184, 46, .05)
+    }
+
+    tbody tr.row-copied {
+      background: rgba(61, 160, 32, .07)
+    }
+
+    td.right {
+      text-align: right
+    }
+
+    td.year {
+      color: var(--accent);
+      font-weight: 600
+    }
+
+    footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: .65rem;
+      color: var(--muted);
+      letter-spacing: .05em
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="logo-mark">VS</div>
+    <div>
+      <h1>VergiScan</h1>
+      <div class="subtitle">PDF sürükle · Tüm veriler otomatik · Tek tık kopyala</div>
+    </div>
+  </header>
+
+  <div id="drop-zone">
+    <input type="file" id="file-input" accept=".pdf">
+    <span class="drop-icon">📄</span>
+    <div class="drop-title">PDF'i buraya sürükle veya tıkla</div>
+    <div class="drop-sub">Vergi Levhası PDF · Barkod VKN görsel OCR dahil tüm alanlar</div>
+  </div>
+
+  <div id="status-bar">
+    <div class="spinner"></div><span id="status-text">İşleniyor...</span>
+  </div>
+
+  <div id="results">
+    <div class="section-label">Vergi Kimlik Numarası — Barkod Görsel OCR</div>
+    <div class="vkn-hero" id="vkn-hero">
+      <div style="flex:1;cursor:pointer" onclick="copyVKN()">
+        <div class="vkn-label">VERGİ KİMLİK NO — Barkod OCR</div>
+        <div class="vkn-value" id="vkn-display">—</div>
+        <div class="vkn-hint" id="vkn-hint">Tıkla kopyala</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.6rem">
+        <span id="vkn-badge" class="vkn-badge"></span>
+        <div style="display:flex;gap:.4rem;align-items:center">
+          <input id="vkn-manual" type="text" maxlength="10" placeholder="Düzelt..."
+            style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.3rem .5rem;font-family:JetBrains Mono,monospace;font-size:.8rem;width:110px;outline:none;letter-spacing:.05em"
+            onclick="event.stopPropagation()" oninput="applyManualVKN(this.value)">
+          <button onclick="event.stopPropagation();copyVKN()"
+            style="background:var(--accent);border:none;color:#000;padding:.35rem .8rem;font-family:JetBrains Mono,monospace;font-size:.72rem;font-weight:700;cursor:pointer;letter-spacing:.06em">
+            KOPYALA
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <details class="ocr-detail">
+      <summary>▶ OCR detayları — barkod bölgesi ve ham çıktı</summary>
+      <div class="ocr-inner">
+        <div>
+          <div
+            style="font-size:.65rem;color:var(--muted);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.06em">
+            Kırpılan Alan</div>
+          <div class="ocr-canvas-wrap"><canvas id="ocr-canvas"></canvas></div>
+        </div>
+        <div class="ocr-lines" id="ocr-raw"></div>
+      </div>
+    </details>
+
+    <div class="section-label" style="margin-top:1rem">Mükellef Bilgileri</div>
+    <div class="fields-grid" id="fields-grid"></div>
+
+    <div class="section-label">Vergi Matrah Tablosu</div>
+    <div class="table-actions">
+      <button class="btn" onclick="copyFullTable()">↗ Tüm tabloyu kopyala (Excel)</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Takvim</th>
+          <th class="right">Beyan Olunan Matrah</th>
+          <th class="right">Tahakkuk Eden Vergi</th>
+        </tr>
+      </thead>
+      <tbody id="tax-tbody"></tbody>
+    </table>
+  </div>
+
+  <footer>Tüm işlemler tarayıcıda · Hiçbir veri sunucuya gönderilmez</footer>
+
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    let currentVKN = '';
+
+    // DROP
+    const dz = document.getElementById('drop-zone'), fi = document.getElementById('file-input');
+    dz.addEventListener('click', () => fi.click());
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over') });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+    dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if (f) processPDF(f) });
+    fi.addEventListener('change', e => { if (e.target.files[0]) processPDF(e.target.files[0]) });
+
+    function setStatus(msg, show = true) {
+      const b = document.getElementById('status-bar');
+      b.className = show ? 'active' : '';
+      document.getElementById('status-text').textContent = msg;
+    }
+
+    async function processPDF(file) {
+      setStatus('PDF açılıyor...');
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      const page = await pdf.getPage(1);
+
+      // TEXT
+      setStatus('Metin ayrıştırılıyor...');
+      const tc = await page.getTextContent();
+      const data = parseVergILevhasi(tc.items);
+
+      // RENDER 4x
+      setStatus('Barkod bölgesi render ediliyor...');
+      const vp = page.getViewport({ scale: 4.0 });
+      const off = document.createElement('canvas');
+      off.width = vp.width; off.height = vp.height;
+      const ctx = off.getContext('2d');
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+      // CROP — PDF coords (842×595): VKN barkod x=565-730, y=148-215 (top-down)
+      // PDF.js renders with y from top → y_canvas = y_pdf * scale
+      const S = 4.0;
+      const cx = Math.round(565 * S), cy = Math.round(148 * S);
+      const cw = Math.round((730 - 565) * S), ch = Math.round((215 - 148) * S);
+
+      const oc = document.getElementById('ocr-canvas');
+      oc.width = cw; oc.height = ch;
+      oc.getContext('2d').drawImage(off, cx, cy, cw, ch, 0, 0, cw, ch);
+      const ds = Math.min(1, 260 / cw);
+      oc.style.width = (cw * ds) + 'px'; oc.style.height = (ch * ds) + 'px';
+
+      // OCR
+      setStatus('VKN OCR çalışıyor...');
+      await runOCR(oc, cw, ch);
+
+      renderFields(data);
+      setStatus('', false);
+    }
+
+    // ── OCR: 5 katmanlı güvenli tarama ───────────────────────
+    async function runOCR(srcCanvas, cw, ch) {
+      let ocrLog = '';
+      const candidates = [];
+
+      try {
+        if (typeof Tesseract === 'undefined') {
+          await loadScript('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js');
+        }
+
+        // ── Yardımcı: canvas'tan piksel verisi işle
+        function preprocessCanvas(src, sx, sy, sw, sh, threshold) {
+          const c = document.createElement('canvas');
+          c.width = sw; c.height = sh;
+          const ctx = c.getContext('2d');
+          ctx.drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh);
+          const id = ctx.getImageData(0, 0, sw, sh);
+          const px = id.data;
+          for (let i = 0; i < px.length; i += 4) {
+            const g = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+            const v = g < threshold ? 0 : 255;
+            px[i] = px[i + 1] = px[i + 2] = v; px[i + 3] = 255;
+          }
+          ctx.putImageData(id, 0, 0);
+          return c;
+        }
+
+        // ── Yardımcı: OCR yap ve digit çıkar
+        async function ocrCanvas(canvas, psm, whitelist, label) {
+          const opts = { tessedit_pageseg_mode: String(psm), logger: () => { } };
+          if (whitelist) opts.tessedit_char_whitelist = whitelist;
+          const r = await Tesseract.recognize(canvas, 'eng', opts);
+          const raw = r.data.text;
+          ocrLog += `[${label}] "${raw.trim()}"\n`;
+
+          const results = [];
+
+          // Rakam gruplarını bul (boşluklarla ayrılmış olabilir)
+          const runs = (raw.match(/[\d][\d ]{4,}[\d]/g) || [])
+            .map(s => s.replace(/\s/g, ''));
+
+          for (const run of runs) {
+            // Tam 10 hane → direkt ekle
+            if (run.length === 10) { results.push(run); continue; }
+            // 11 hane → OCR soldan 1 fazla karakter eklemiş olabilir → son 10'u al
+            if (run.length === 11) { results.push(run.slice(1)); results.push(run.slice(0, 10)); continue; }
+            // 12 hane → ilk/son 10'u dene
+            if (run.length === 12) { results.push(run.slice(2)); results.push(run.slice(1, 11)); results.push(run.slice(0, 10)); continue; }
+            // 8-9 hane → eksik olabilir, yine de ekle
+            if (run.length >= 8) results.push(run);
+          }
+
+          // Tüm rakamları birleştir (farklı gruplar birleşmiş olabilir)
+          const allDigits = raw.replace(/[^0-9]/g, '');
+          if (allDigits.length === 10) results.push(allDigits);
+          if (allDigits.length === 11) { results.push(allDigits.slice(1)); results.push(allDigits.slice(0, 10)); }
+          if (allDigits.length >= 8 && allDigits.length <= 12) results.push(allDigits.slice(-10));
+
+          return { raw, runs: results };
+        }
+
+        // Bölgeleri hazırla
+        const stripY = Math.round(ch * 0.60); // barkod altı rakamlar
+        const stripH = ch - stripY;
+        const midY = Math.round(ch * 0.30);
+        const midH = Math.round(ch * 0.40);
+
+        // Yüksek kontrast versiyonları
+        const fullRaw = srcCanvas;                                          // orijinal
+        const fullThresh = preprocessCanvas(srcCanvas, 0, 0, cw, ch, 140);   // tüm alan, agresif eşik
+        const stripRaw = preprocessCanvas(srcCanvas, 0, stripY, cw, stripH, 200); // alt şerit, açık eşik
+        const stripDark = preprocessCanvas(srcCanvas, 0, stripY, cw, stripH, 110); // alt şerit, koyu
+        const midStrip = preprocessCanvas(srcCanvas, 0, midY, cw, midH, 150); // orta bölge
+
+        // 5 farklı deneme
+        const [a1, a2, a3, a4, a5] = await Promise.all([
+          ocrCanvas(fullRaw, 6, null, 'PSM6-full-original'),
+          ocrCanvas(fullThresh, 6, null, 'PSM6-full-thresh'),
+          ocrCanvas(stripRaw, 7, '0123456789 ', 'PSM7-strip-raw'),
+          ocrCanvas(stripDark, 7, '0123456789 ', 'PSM7-strip-dark'),
+          ocrCanvas(midStrip, 13, '0123456789 ', 'PSM13-mid'),
+        ]);
+
+        // Tüm adayları topla
+        for (const res of [a1, a2, a3, a4, a5]) {
+          for (const v of res.runs) {
+            candidates.push(v);
+          }
+        }
+
+        ocrLog += `\n[Adaylar] ${JSON.stringify([...new Set(candidates)])}\n`;
+
+      } catch (e) {
+        ocrLog += 'HATA: ' + e.message;
+      }
+
+      // ── En iyi adayı seç — frekans oylaması ─────────────────
+      // Kural 1: Tam 10 hane adaylar arasında en sık tekrar eden kazanır
+      // Kural 2: Eşitlikte daha güvenilir PSM kaynağından gelen (a1,a2) öncelikli
+      // Kural 3: 10 hane yoksa 9 hane, ondan sonra diğerleri
+
+      const freq10 = {}, freqOther = {};
+      for (const v of candidates) {
+        if (v.length === 10) freq10[v] = (freq10[v] || 0) + 1;
+        else { const k = v.slice(0, 10); freqOther[k] = (freqOther[k] || 0) + 1; }
+      }
+
+      let bestVal = '', bestScore = 0;
+
+      // Önce tam 10 haneliler
+      for (const [val, count] of Object.entries(freq10)) {
+        const sc = 100 + count * 25; // her ek oy +25 puan
+        if (sc > bestScore) { bestScore = sc; bestVal = val; }
+      }
+
+      // 10 hane bulunamadıysa diğerleri
+      if (!bestVal) {
+        for (const [val, count] of Object.entries(freqOther)) {
+          const sc = (val.length === 9 ? 60 : 30) + count * 10;
+          if (sc > bestScore) { bestScore = sc; bestVal = val; }
+        }
+      }
+
+      ocrLog += `\n[Seçilen] "${bestVal}" (skor: ${bestScore})\n`;
+      document.getElementById('ocr-raw').innerHTML =
+        ocrLog.split('\n').map(l => `<span>${escHtml(l)}</span>`).join('');
+
+      const vkn = bestVal.slice(0, 10);
+      const confidence = bestScore;
+
+      currentVKN = vkn;
+      document.getElementById('vkn-display').textContent = vkn || '—';
+      document.getElementById('vkn-hint').textContent = vkn ? 'Tıkla kopyala' : 'OCR sonuç bulunamadı — OCR detaylarına bak';
+
+      const badge = document.getElementById('vkn-badge');
+      if (confidence >= 120) { badge.className = 'vkn-badge conf-high'; badge.textContent = '✓ Çok yüksek güven'; }
+      else if (confidence >= 80) { badge.className = 'vkn-badge conf-high'; badge.textContent = '✓ Yüksek güven'; }
+      else if (confidence >= 50) { badge.className = 'vkn-badge conf-med'; badge.textContent = '⚠ Orta güven — kontrol et'; }
+      else { badge.className = 'vkn-badge conf-low'; badge.textContent = '✗ Düşük güven — manuel gir'; }
+    }
+
+    // ── PARSING ────────────────────────────────────────────────
+    function parseVergILevhasi(items) {
+      // Each item: str, transform=[a,b,c,d,tx,ty], width, height
+      // tx=x, ty=y (PDF bottom-up coords)
+      const ws = items.map(i => ({
+        t: i.str.trim(), x: i.transform[4], y: i.transform[5], w: i.width || 0
+      })).filter(i => i.t.length > 0);
+
+      // Group into rows (y±5)
+      const rows = [];
+      for (const w of ws) {
+        let row = rows.find(r => Math.abs(r.y - w.y) < 5);
+        if (!row) { row = { y: w.y, words: [] }; rows.push(row); }
+        row.words.push(w);
+      }
+      rows.sort((a, b) => b.y - a.y);// top first (higher y = lower on page in PDF bottom-up)
+      rows.forEach(r => r.words.sort((a, b) => a.x - b.x));
+
+      // Helpers
+      function rowText(row) { return row.words.map(w => w.t).join(' ') }
+      function allText() { return rows.map(rowText).join('\n') }
+      function wordsRight(row, minX) { return row.words.filter(w => w.x >= minX).map(w => w.t).join(' ') }
+
+      // Find row containing a substring
+      function findRow(substr) { return rows.find(r => rowText(r).includes(substr)) || null }
+
+      // Value to the right of label (x > label_end + gap)
+      function rightOf(row, labelParts) {
+        let maxLabelX = 0;
+        for (const p of labelParts) {
+          const lw = row.words.find(w => w.t.includes(p));
+          if (lw) maxLabelX = Math.max(maxLabelX, lw.x + (lw.w || 30));
+        }
+        const thresh = Math.max(maxLabelX + 10, 210);
+        const vals = row.words.filter(w => w.x >= thresh);
+        return vals.map(w => w.t).join(' ').trim();
+      }
+
+      const d = {};
+
+      // VERGİ DAİRESİ — on "ADI SOYADI" row, x>550
+      const adiRow = findRow('ADI SOYADI');
+      if (adiRow) {
+        const daire = adiRow.words.filter(w => w.x > 550).map(w => w.t).join(' ').trim();
+        d['VERGİ DAİRESİ'] = daire || '';
+      }
+      // Also check rows near VERGİ DAİRESİ label
+      if (!d['VERGİ DAİRESİ']) {
+        const vdRow = findRow('DAİRESİ');
+        if (vdRow) { d['VERGİ DAİRESİ'] = vdRow.words.filter(w => w.x > 550).map(w => w.t).join(' ').trim(); }
+      }
+
+      // TİCARET ÜNVANI — row with label, value at x>210 ve x<490 (sağdaki VERGİ KİMLİK NO x=498'den başlar)
+      const tunRow = findRow('TİCARET ÜNVANI');
+      if (tunRow) {
+        const labelWords = ['TİCARET', 'ÜNVANI', 'VERGİ', 'KİMLİK', 'NO', 'DAİRESİ', 'TC'];
+        const valWords = tunRow.words.filter(w => w.x > 210 && w.x < 490 && !labelWords.includes(w.t));
+        d['TİCARET ÜNVANI'] = valWords.map(w => w.t).join(' ').trim();
+      }
+      // Fallback: ŞİRKETİ/LİMİTED/A.Ş içeren satır — yine x<490 filtresi
+      if (!d['TİCARET ÜNVANI'] || d['TİCARET ÜNVANI'].length < 3) {
+        for (const row of rows) {
+          const rt = rowText(row);
+          if ((rt.includes('LİMİTED') || rt.includes('ŞİRKETİ') || rt.includes('A.Ş')) && !rt.includes('TİCARET ÜNVANI')) {
+            const valWords = row.words.filter(w => w.x < 490);
+            d['TİCARET ÜNVANI'] = valWords.map(w => w.t).join(' ').trim();
+            break;
+          }
+        }
+      }
+
+      // İŞ YERİ ADRESİ — same row value x>210, continue to next row if no labels
+      const adrRow = findRow('İŞ YERİ ADRESİ');
+      if (adrRow) {
+        let adr = rightOf(adrRow, ['İŞ', 'YERİ', 'ADRESİ']);
+        const ri = rows.indexOf(adrRow);
+        if (ri >= 0 && ri + 1 < rows.length) {
+          const next = rows[ri + 1];
+          const nt = rowText(next);
+          const isLabel = ['VERGİ', 'KİMLİK', 'TİCARET', 'TÜRÜ', 'İŞE', 'TC KİM'].some(l => nt.includes(l));
+          if (!isLabel) {
+            const cont = next.words.filter(w => w.x > 210).map(w => w.t).join(' ');
+            if (cont) adr += ' ' + cont;
+          }
+        }
+        d['İŞ YERİ ADRESİ'] = adr.trim();
+      }
+
+      // VERGİ TÜRÜ — row with label, value x>210
+      const vtRow = rows.find(r => rowText(r).match(/^VERGİ TÜRÜ|VERGİ TÜRÜ\b/));
+      if (vtRow) {
+        d['VERGİ TÜRÜ'] = rightOf(vtRow, ['VERGİ', 'TÜRÜ']);
+      }
+      if (!d['VERGİ TÜRÜ']) {
+        // fallback: find row with VERGİSİ
+        for (const row of rows) {
+          const rt = rowText(row);
+          const m = rt.match(/(KURUMLAR VERGİSİ|GELİR VERGİSİ|KDV\w*)/);
+          if (m) { d['VERGİ TÜRÜ'] = m[0]; break; }
+        }
+      }
+
+      // İŞE BAŞLAMA TARİHİ
+      const at = allText();
+      const dm = at.match(/(\d{2}\.\d{2}\.\d{4})/);
+      d['İŞE BAŞLAMA TARİHİ'] = dm ? dm[1] : '';
+
+      // ANA FAALİYET — row with 6-digit code
+      let actParts = [];
+      for (let ri = 0; ri < rows.length; ri++) {
+        const rt = rowText(rows[ri]);
+        if (/\b\d{6}[-–]/.test(rt) || (/\b\d{6}\b/.test(rt) && rt.includes('AMAÇ'))) {
+          actParts.push(rows[ri].words.filter(w => w.x > 210).map(w => w.t).join(' ') || rt);
+          // next row continuation
+          if (ri + 1 < rows.length) {
+            const nrt = rowText(rows[ri + 1]);
+            if (nrt.includes('YENİLENMESİ') || nrt.includes('REVİZYON') || nrt.includes('HARİÇ')) {
+              actParts.push(nrt);
+            }
+          }
+          break;
+        }
+      }
+      d['ANA FAALİYET KODU VE ADI'] = actParts.join(' ').trim();
+
+      // TC KİMLİK NO
+      d['TC KİMLİK NO'] = '';
+
+      // TABLE
+      d._table = [];
+      for (const row of rows) {
+        const rt = rowText(row);
+        const m = rt.match(/\b(20\d{2})\b[^0-9]+([\d.]+,\d{2})[^0-9]+([\d.]+,\d{2})/);
+        if (m) d._table.push({ yil: m[1], matrah: m[2], vergi: m[3] });
+      }
+
+      return d;
+    }
+
+    // ── RENDER ─────────────────────────────────────────────────
+    // ── Ünvan Kısaltma Sözlüğü ────────────────────────────────
+    // Sıralama önemli: uzun eşleşmeler önce gelsin
+    const KISALTMALAR = [
+      // Şirket tipleri
+      { uzun: /ANONİM ŞİRKETİ/gi, kisa: 'A.Ş.' },
+      { uzun: /ANONİM ORTAKLIĞI/gi, kisa: 'A.Ş.' },
+      { uzun: /LİMİTED ŞİRKETİ/gi, kisa: 'LTD. ŞTİ.' },
+      { uzun: /LİMİTED ŞERTI/gi, kisa: 'LTD. ŞTİ.' },
+      { uzun: /KOLLEKTİF ŞİRKETİ/gi, kisa: 'KOLL. ŞTİ.' },
+      { uzun: /KOMANDİT ŞİRKETİ/gi, kisa: 'KOMA. ŞTİ.' },
+      { uzun: /KOOPERATİFİ/gi, kisa: 'KOOP.' },
+      { uzun: /KOOPERATİF/gi, kisa: 'KOOP.' },
+      { uzun: /İŞ ORTAKLIĞI/gi, kisa: 'İŞ ORT.' },
+      { uzun: /ORTAKLIĞI/gi, kisa: 'ORT.' },
+      // Faaliyet kelimeleri
+      { uzun: /TAAHHÜT/gi, kisa: 'TAAH.' },
+      { uzun: /İNŞAAT/gi, kisa: 'İNŞ.' },
+      { uzun: /MÜHENDİSLİK/gi, kisa: 'MÜH.' },
+      { uzun: /MİMARLIK/gi, kisa: 'MİM.' },
+      { uzun: /DANIŞMANLIK/gi, kisa: 'DAN.' },
+      { uzun: /TEKNOLOJİ/gi, kisa: 'TEK.' },
+      { uzun: /HİZMETLERİ/gi, kisa: 'HİZ.' },
+      { uzun: /HİZMET/gi, kisa: 'HİZ.' },
+      { uzun: /SANAYİ/gi, kisa: 'SAN.' },
+      { uzun: /TİCARET/gi, kisa: 'TİC.' },
+      { uzun: /NAKLİYAT/gi, kisa: 'NAK.' },
+      { uzun: /ULUSLARARASI/gi, kisa: 'ULUSLAR.' },
+      { uzun: /ENDÜSTRİ/gi, kisa: 'END.' },
+      { uzun: /GAYRİMENKUL/gi, kisa: 'G.M.K.' },
+      { uzun: /YATIRIM/gi, kisa: 'YAT.' },
+      { uzun: /PAZARLAMA/gi, kisa: 'PAZ.' },
+      { uzun: /İTHALAT/gi, kisa: 'İTH.' },
+      { uzun: /İHRACAT/gi, kisa: 'İHR.' },
+      { uzun: /İMALAT/gi, kisa: 'İML.' },
+      { uzun: /TAŞIMACILIK/gi, kisa: 'TAŞI.' },
+      { uzun: /TAŞIMACILIĞI/gi, kisa: 'TAŞI.' },
+      { uzun: /ELEKTRİK/gi, kisa: 'ELK.' },
+      { uzun: /ELEKTRONİK/gi, kisa: 'ELKT.' },
+      { uzun: /GIDA/gi, kisa: 'GID.' },
+      { uzun: /PETROL/gi, kisa: 'PET.' },
+      { uzun: /KİMYA/gi, kisa: 'KİM.' },
+      { uzun: /ORMAN/gi, kisa: 'ORM.' },
+      { uzun: /TARIM/gi, kisa: 'TAR.' },
+      { uzun: /SIGORTA/gi, kisa: 'SİG.' },
+      { uzun: /FİNANSMAN/gi, kisa: 'FİN.' },
+      { uzun: /SAĞLIK/gi, kisa: 'SAĞ.' },
+      { uzun: /TURİZM/gi, kisa: 'TUR.' },
+      { uzun: /MEDYA/gi, kisa: 'MED.' },
+      { uzun: /BASIN/gi, kisa: 'BAS.' },
+      { uzun: /LOJİSTİK/gi, kisa: 'LOJ.' },
+      { uzun: /YAYINCILIK/gi, kisa: 'YAY.' },
+      { uzun: /YAZILIM/gi, kisa: 'YAZ.' },
+      { uzun: /ARAŞTIRMA/gi, kisa: 'AR.' },
+      { uzun: /GELİŞTİRME/gi, kisa: 'GE.' },
+      { uzun: /ÜRETİM/gi, kisa: 'ÜR.' },
+      { uzun: /ALIM SATIM/gi, kisa: 'A.S.' },
+      { uzun: /SOSYAL/gi, kisa: 'SOS.' },
+      { uzun: /PROJE/gi, kisa: 'PROJ.' },
+      { uzun: /MERKEZİ/gi, kisa: 'MRK.' },
+      { uzun: /MERKEZ/gi, kisa: 'MRK.' },
+      { uzun: /YÖNETİM/gi, kisa: 'YÖN.' },
+      { uzun: /YAPIM/gi, kisa: 'YAP.' },
+      { uzun: /YAPI/gi, kisa: 'YAP.' },
+      { uzun: /DOĞALGAZ/gi, kisa: 'D.GAZ' },
+      { uzun: /OTOMOTİV/gi, kisa: 'OTO.' },
+      { uzun: /AKARYAKIT/gi, kisa: 'AKAR.' },
+      { uzun: /İÇECEK/gi, kisa: 'İÇ.' },
+      { uzun: /TEKSTIL/gi, kisa: 'TEK.' },
+      { uzun: /TEKSTİL/gi, kisa: 'TEK.' },
+      { uzun: /KUYUMCULUK/gi, kisa: 'KUY.' },
+      { uzun: /MÜZİK/gi, kisa: 'MÜZ.' },
+    ];
+
+    function kisalt(unvan) {
+      if (!unvan || unvan === '—') return '—';
+      let k = unvan;
+      for (const { uzun, kisa } of KISALTMALAR) {
+        k = k.replace(uzun, kisa);
+      }
+      // Birden fazla boşluğu tek boşluğa indir
+      k = k.replace(/\s{2,}/g, ' ').trim();
+      return k;
+    }
+
+    const FIELDS = [
+      { key: 'TİCARET ÜNVANI', wide: true },
+      { key: 'İŞ YERİ ADRESİ', wide: true },
+      { key: 'VERGİ DAİRESİ', wide: false },
+      { key: 'VERGİ TÜRÜ', wide: false },
+      { key: 'İŞE BAŞLAMA TARİHİ', wide: false },
+      { key: 'ANA FAALİYET KODU VE ADI', wide: true },
+      { key: 'TC KİMLİK NO', wide: false },
+    ];
+
+    function renderFields(data) {
+      const grid = document.getElementById('fields-grid');
+      grid.innerHTML = '';
+      for (const f of FIELDS) {
+        const val = data[f.key] || '—';
+
+        // TİCARET ÜNVANI için çift satır kart: tam + kısaltılmış
+        if (f.key === 'TİCARET ÜNVANI') {
+          const kisaVal = kisalt(val);
+          const card = document.createElement('div');
+          card.className = 'field-card wide';
+          card.style.cursor = 'default';
+          card.innerHTML = `
+        <div class="field-label">TİCARET ÜNVANI</div>
+        <div class="field-value" style="margin-bottom:.7rem">${escHtml(val)}</div>
+        <div style="border-top:1px solid var(--border);padding-top:.6rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap">
+          <div>
+            <div class="field-label" style="color:var(--accent);margin-bottom:.2rem">KISALTILMIŞ ÜNVAN — kopyala</div>
+            <div class="field-value" id="kisa-unvan-val" style="color:var(--accent);font-size:.95rem">${escHtml(kisaVal)}</div>
+          </div>
+          <button id="kisa-copy-btn" onclick="copyKisaUnvan()"
+            style="background:var(--accent);border:none;color:#000;padding:.35rem .9rem;font-family:JetBrains Mono,monospace;font-size:.72rem;font-weight:700;cursor:pointer;letter-spacing:.06em;flex-shrink:0">
+            KOPYALA
+          </button>
+        </div>
+        <div style="margin-top:.6rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+          <input id="kisa-unvan-input" type="text" value="${escHtml(kisaVal)}"
+            style="flex:1;min-width:200px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.3rem .5rem;font-family:JetBrains Mono,monospace;font-size:.8rem;outline:none;"
+            oninput="document.getElementById('kisa-unvan-val').textContent=this.value;window._kisaUnvan=this.value"
+            placeholder="Kısaltmayı düzenle...">
+          <span style="font-size:.65rem;color:var(--muted)">↑ düzenlenebilir</span>
+        </div>`;
+          window._kisaUnvan = kisaVal;
+          grid.appendChild(card);
+          continue;
+        }
+
+        const card = document.createElement('div');
+        card.className = 'field-card' + (f.wide ? ' wide' : '');
+        card.innerHTML = `<div class="field-label">${f.key}</div><div class="field-value">${escHtml(val)}</div><span class="copy-hint">tıkla kopyala</span><div class="copy-flash">✓ KOPYALANDI</div>`;
+        card.addEventListener('click', () => copyCard(card, val));
+        grid.appendChild(card);
+      }
+      const tbody = document.getElementById('tax-tbody');
+      tbody.innerHTML = '';
+      (data._table || []).forEach(row => {
+        const tr = document.createElement('tr');
+        const txt = `${row.yil}\t${row.matrah}\t${row.vergi}`;
+        tr.innerHTML = `<td class="year">${row.yil}</td><td class="right">${row.matrah}</td><td class="right">${row.vergi}</td>`;
+        tr.title = 'Tıkla — satırı kopyala';
+        tr.addEventListener('click', () => {
+          navigator.clipboard.writeText(txt);
+          tr.classList.add('row-copied');
+          setTimeout(() => tr.classList.remove('row-copied'), 1000);
+        });
+        tbody.appendChild(tr);
+      });
+      document.getElementById('results').className = 'show';
+    }
+
+    function copyKisaUnvan() {
+      const val = window._kisaUnvan || document.getElementById('kisa-unvan-val')?.textContent || '';
+      if (!val || val === '—') return;
+      navigator.clipboard.writeText(val).then(() => {
+        const btn = document.getElementById('kisa-copy-btn');
+        if (btn) { btn.textContent = '✓ KOPYALANDI'; setTimeout(() => { btn.textContent = 'KOPYALA'; }, 1000); }
+      });
+    }
+
+    function copyCard(card, val) {
+      if (val === '—') return;
+      navigator.clipboard.writeText(val).then(() => {
+        card.classList.add('copied');
+        setTimeout(() => card.classList.remove('copied'), 900);
+      });
+    }
+
+    function applyManualVKN(val) {
+      const clean = val.replace(/[^0-9]/g, '').slice(0, 10);
+      if (clean.length > 0) {
+        currentVKN = clean;
+        document.getElementById('vkn-display').textContent = clean;
+        const badge = document.getElementById('vkn-badge');
+        badge.className = 'vkn-badge conf-med';
+        badge.textContent = '✎ Manuel girildi';
+      }
+    }
+
+    function copyVKN() {
+      if (!currentVKN) return;
+      navigator.clipboard.writeText(currentVKN).then(() => {
+        document.getElementById('vkn-hero').classList.add('copied');
+        document.getElementById('vkn-hint').textContent = '✓ Kopyalandı!';
+        setTimeout(() => {
+          document.getElementById('vkn-hero').classList.remove('copied');
+          document.getElementById('vkn-hint').textContent = 'Tıkla kopyala';
+        }, 1000);
+      });
+    }
+
+    function copyFullTable() {
+      const rows = document.querySelectorAll('#tax-tbody tr');
+      let t = 'Takvim\tBeyan Olunan Matrah\tTahakkuk Eden Vergi\n';
+      rows.forEach(tr => { t += Array.from(tr.querySelectorAll('td')).map(c => c.textContent.trim()).join('\t') + '\n'; });
+      navigator.clipboard.writeText(t).then(() => {
+        const b = document.querySelector('.btn');
+        b.textContent = '✓ Kopyalandı!';
+        setTimeout(() => { b.textContent = '↗ Tüm tabloyu kopyala (Excel)'; }, 1500);
+      });
+    }
+
+    function loadScript(src) {
+      return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+    }
+    function escHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  </script>
+</body>
+
+</html>
